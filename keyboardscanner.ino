@@ -14,8 +14,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <DIO2.h> // install the library DIO2
-#include <MIDIUSB.h>
+#include <DIO2.h> // Install the library DIO2
+#include <MIDIUSB.h> // Using MIDIUSB to have this work as a HID
 
 #define KEYS_NUMBER 76
 
@@ -32,12 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define PEDAL_PIN     21
 
-//find out the pins using a multimeter, starting from the first key
-//see the picture key_scheme.png to understand how to map the inputs and outputs
-
-//the following configuration is specific for PSR530
-//thanks Leandro Meucchi, from Argentina, by the PDF
-//take a look at the scheme detailed in PSR530.pdf and modify the following mapping according to the wiring of your keyboard
+// The following configuration is specific for PSR-EW310 using an Arduino Due
 #define PIN_A1  22
 #define PIN_A2  24
 #define PIN_A3  28
@@ -65,7 +60,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define PIN_B12 33
 #define PIN_B13 35
 #define PIN_B14 37
-
 
 byte output_pins[] = {
   PIN_B3,
@@ -377,33 +371,16 @@ byte input_pins[] = {
   PIN_A6,
 };
 
-//cheap keyboards often has the black keys softer or harder than the white ones
-//uncomment the next line to allow a soft correction
-//#define BLACK_KEYS_CORRECTION
-
-#ifdef BLACK_KEYS_CORRECTION
-  #define MULTIPLIER 192 // 127 is the central value (corresponding to 1.0)
-
-  byte black_keys[] = {
-    0,1,0,1,0,0,1,0,1,0,1,0,
-    0,1,0,1,0,0,1,0,1,0,1,0,
-    0,1,0,1,0,0,1,0,1,0,1,0,
-    0,1,0,1,0,0,1,0,1,0,1,0,
-    0,1,0,1,0,0,1,0,1,0,1,0,
-    0
-  };
-#endif
-
-//uncomment the next line to inspect the number of scans per seconds
-//#define DEBUG_SCANS_PER_SECOND
+// Uncomment the next line to inspect the number of scans per seconds
+// #define DEBUG_SCANS_PER_SECOND
 
 /*
 426 cyles per second (2,35ms per cycle) using standard digitalWrite/digitalRead
 896 cyles per second (1,11ms per cycle) using DIO2 digitalWrite2/digitalRead2
 */
 
-//uncoment the next line to get text midi message at output
-//#define DEBUG_MIDI_MESSAGE
+// Uncoment the next line to get text midi message at output
+// #define DEBUG_MIDI_MESSAGE
 
 byte          keys_state[KEYS_NUMBER];
 unsigned long keys_time[KEYS_NUMBER];
@@ -453,13 +430,6 @@ void send_midi_event(byte status_byte, byte key_index, unsigned long time)
 {
   unsigned long t = time;
 
-  #ifdef BLACK_KEYS_CORRECTION
-    if (black_keys[key_index])
-    {
-      t = (t * MULTIPLIER) >> 7;
-    }
-  #endif
-
   if (t > MAX_TIME_MS)
       t = MAX_TIME_MS;
   if (t < MIN_TIME_MS)
@@ -470,11 +440,14 @@ void send_midi_event(byte status_byte, byte key_index, unsigned long time)
   unsigned long velocity = 127 - (t * 127 / MAX_TIME_MS_N);
   byte vel = (((velocity * velocity) >> 7) * velocity) >> 7;
   byte key = 16 + key_index;
+  
   #ifdef DEBUG_MIDI_MESSAGE
     char out[32];
     sprintf(out, "%02X %02X %03d %d", status_byte, key, vel, time);
     Serial.println(out);
   #else
+    // These will eventually be used to send MIDI to a Raspberry Pi that will 
+    // playback audio using Squishbox 
     // Serial.write(status_byte);
     // Serial.write(key);
     // Serial.write(vel);
